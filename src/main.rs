@@ -73,7 +73,9 @@ struct MainState {
     player: Rect,
     asteroids: Vec<Asteroid>,
     projectiles: Vec<Projectile>,
-    frames: u32
+    score: u64,
+    frames: u32,
+    game_over: bool
 }
 
 impl MainState {
@@ -130,7 +132,7 @@ impl EventHandler for MainState {
         // collisions
         for aster in self.asteroids.iter_mut() {
             if aster.rect.overlaps(&self.player) {
-                println!("Over");
+                self.game_over = true;
             }
             // if a projectile collides with a rock set has_collided to true
             // proj and aster will be removed
@@ -138,8 +140,18 @@ impl EventHandler for MainState {
                 if proj.rect.overlaps(&aster.rect) {
                     proj.has_collided = true;
                     aster.has_collided = true;
+                    self.score += 5;
                 }
             }
+        }
+
+        // If game_over is true reset game state
+        if self.game_over {
+            self.asteroids = Vec::new();
+            self.projectiles = Vec::new();
+            self.player.x = SCREEN_WIDTH / 2.0;
+            self.player.y = SCREEN_HEIGHT * 0.9;
+            self.game_over = false;
         }
 
         // remove projectiles and asteroids with prop has_collided = true
@@ -162,14 +174,17 @@ impl EventHandler for MainState {
 
         graphics::clear(ctx, Color::new(0.0, 0.0, 0.0, 1.0)); // black background
 
-        // Create meshes
+        // Create player meshe
         let player_mesh = graphics::Mesh::new_rectangle(
             ctx,
       graphics::DrawMode::fill(),
             self.player,
-            Color::new(1.0, 1.0, 1.0, 1.0) // gray
+            Color::new(0.0, 0.0, 1.0, 1.0) // gray
         ).expect("error creating a player mesh");
 
+        // Draw player
+        graphics::draw(ctx, &player_mesh, graphics::DrawParam::default())
+            .expect("error drawing a player");
 
         // create and draw asteroids
         for ast in self.asteroids.iter() {
@@ -198,10 +213,18 @@ impl EventHandler for MainState {
                 .expect("error drawing a projectile");
         }
 
+        // Score
+        let mut scoreboard_text =
+            graphics::Text::new(format!("Score: {}", self.score));
+        scoreboard_text.set_font(graphics::Font::default(), graphics::Scale::uniform(24.0));
 
-        // Draw player
-        graphics::draw(ctx, &player_mesh, graphics::DrawParam::default())
-            .expect("error drawing a player");
+        let coords = [
+            SCREEN_WIDTH / 2.0 - scoreboard_text.width(ctx) as f32 / 2.0,
+            10.0,
+        ];
+
+        let params = graphics::DrawParam::default().dest(coords);
+        graphics::draw(ctx, &scoreboard_text, params).expect("error drawing scoreboard text");
 
 
         graphics::present(ctx).expect("error presenting");
@@ -230,7 +253,9 @@ fn main() {
         player: Rect::new(SCREEN_WIDTH / 2.0, SCREEN_HEIGHT * 0.9, 10.0, 20.0),
         asteroids: vec![Asteroid::new(), Asteroid::new()],
         projectiles: Vec::new(),
-        frames: 0
+        score: 0,
+        frames: 0,
+        game_over: false
     };
 
     ggez::event::run(ctx, event_loop, main_state);
